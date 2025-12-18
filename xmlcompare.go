@@ -37,8 +37,17 @@ func compareElements(actual, expected *etree.Element) bool {
 // unexpected XML snippet is printed to aid debugging.
 func compareElementsWithPath(actual, expected *etree.Element, path string) bool {
 	// Tag
-	if actual.Tag != expected.Tag {
-		fmt.Printf("XML mismatch at %s: different tags: actual=<%s> expected=<%s>\n", path, actual.Tag, expected.Tag)
+	// Compare both namespace prefix (Space) and local tag (Tag)
+	if actual.Space != expected.Space || actual.Tag != expected.Tag {
+		aName := actual.Tag
+		eName := expected.Tag
+		if actual.Space != "" {
+			aName = actual.Space + ":" + aName
+		}
+		if expected.Space != "" {
+			eName = expected.Space + ":" + eName
+		}
+		fmt.Printf("XML mismatch at %s: different tags: actual=<%s> expected=<%s>\n", path, aName, eName)
 		return false
 	}
 
@@ -53,9 +62,9 @@ func compareElementsWithPath(actual, expected *etree.Element, path string) bool 
 	used := make([]bool, len(expectedChildren))
 
 	for _, actualChild := range actualChildren {
-		// 1) Candidates with the same local tag name
+		// 1) Candidates with the same qualified tag name (namespace + local)
 		aLocal := actualChild.Tag
-		sameTagIdx := sameTagCandidates(aLocal, expectedChildren, used)
+		sameTagIdx := sameTagCandidates(aLocal, actualChild.Space, expectedChildren, used)
 		if len(sameTagIdx) == 0 {
 			fmt.Printf("Unexpected child at %s/%s\n", path, aLocal)
 			return false
@@ -153,13 +162,13 @@ func isXMLNSAttr(a etree.Attr) bool {
 }
 
 // sameTagCandidates returns indices of children having the given local tag and not used.
-func sameTagCandidates(local string, candidates []*etree.Element, used []bool) []int {
+func sameTagCandidates(local string, space string, candidates []*etree.Element, used []bool) []int {
 	idx := make([]int, 0)
 	for j, ec := range candidates {
 		if used[j] {
 			continue
 		}
-		if ec.Tag == local {
+		if ec.Tag == local && ec.Space == space {
 			idx = append(idx, j)
 		}
 	}
